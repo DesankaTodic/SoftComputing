@@ -1,6 +1,6 @@
 #link ka dataset-u: http://www.cvl.isy.liu.se/en/research/datasets/swedish-leaf/
-#http://dataconomy.com/2015/04/implementing-the-five-most-popular-similarity-measures-in-python/
-#http://www-rohan.sdsu.edu/doc/matlab/toolbox/images/regionprops.html#254911
+#racunanja rastojanja: http://dataconomy.com/2015/04/implementing-the-five-most-popular-similarity-measures-in-python/
+#osobine regionprops-a: http://www-rohan.sdsu.edu/doc/matlab/toolbox/images/regionprops.html#254911
 
 import matplotlib.pyplot as plt  # za prikaz slika, grafika, itd.
 import numpy as np
@@ -16,17 +16,13 @@ from skimage.morphology import dilation
 from skimage.measure import label  # implementacija connected-components labelling postupka
 from skimage.measure import regionprops
 from skimage.morphology import square, diamond, disk  # strukturni elementi
-#from sklearn.datasets import fetch_mldata
-#from keras.models import load_model
-#from scipy.fftpack import dct, idct
-from PIL import Image
 from pylab import *
 from resizeimage import resizeimage
 import csv
 import random
 import math
 import operator
-
+"""
 def processRegions(path,leafNum):
     img = imread(path)
     image_gray = rgb2gray(img)  # transformacija u nijanse sive
@@ -51,20 +47,11 @@ def processRegions(path,leafNum):
         width = bbox[3] - bbox[1]  # sirina
         if height > 50 or width > 50:
             #area - Returns a scalar that specifies the actual number of pixels in the region.
-            #perimeter - Returns a scalar that specifies the distance around the boundary of the region. regionprops
-            #computes the perimeter by calculating the distance between each adjoining pair of pixels around the border of the region.
-            #Perimeter = np.append(Perimeter, region.perimeter)
             #major_axis_length/minor_axis_length - Returns a scalar that specifies the length (in pixels) of the major/minor axis of the ellipse that has
             # the same normalized second central moments as the region
-            #MajorAxis = np.append(MajorAxis, region.major_axis_length)
-            #MinorAxis = np.append(MinorAxis, region.minor_axis_length)
-            #line=str(round(region.area,2))+','+str(round(region.perimeter,2))+','+str(round(region.major_axis_length,2))+','+str(round(region.minor_axis_length,2))+','+leafNum
-            #line = str(round(region.area, 2)) + ',' + str(round(region.major_axis_length, 2)) + ',' + str(round(region.minor_axis_length, 2)) + ',' + leafNum
-            #'Solidity' - Scalar; the proportion of the pixels in the convex hull that are also in the region. Computed as Area/ConvexArea.
-            normalArea = region.area/1000
-            #print normalArea
+            normalArea = region.area/1000 #skaliranje povrsine posto je 1000 puta veca od osa, da bi isto doprinosile prilikom racunanja rastojanja
+            # line = str(round(region.area, 2)) + ',' + str(round(region.major_axis_length, 2))  + ',' + leafNum
             line = str(round(normalArea, 2))  + ',' + str(round(region.major_axis_length, 2))  + ',' + str(round(region.minor_axis_length, 2)) + ',' + leafNum
-            #print line
     return line
 path1 = 'train_images/leaf1/l1nr001.tif'
 path2 = 'train_images/leaf2/l2nr001.tif'
@@ -84,7 +71,6 @@ path15 = 'train_images/leaf15/l15nr001.tif'
 #otvaranje fajla za cuvanje listova oznacenih po atributima u rezimu pisanja
 file = open('leaf.data','w')
 
-
 def processPathsToImages(path,imageRootName):
     for xxx in range(1, 76):
         splits = path.split('/')
@@ -101,6 +87,8 @@ def processPathsToImages(path,imageRootName):
         line = processRegions(path, imageRootName)
         file.write(line + '\n')
 
+print "Begin :"
+print  datetime.datetime.now().time()
 #processPathsToImages(path1,'l1nr00')
 processPathsToImages(path2,'l2nr00')
 processPathsToImages(path3,'l3nr00')
@@ -117,15 +105,14 @@ processPathsToImages(path13,'l13nr00')
 processPathsToImages(path14,'l14nr00')
 #processPathsToImages(path15,'l15nr00')
 file.close()
-
+"""
 def loadDataset(filename, split, trainingSet=[], testSet=[]):
     with open(filename, 'rb') as csvfile:
         lines = csv.reader(csvfile)
         dataset = list(lines)
         for x in range(len(dataset)):
-            #for y in range(4):  #da od stringa upisanog u fajl napravi float
-            for y in range(3):  # da od stringa upisanog u fajl napravi float
-            #for y in range(2):  # da od stringa upisanog u fajl napravi float
+            for y in range(3):  # da od stringa upisanog u fajl napravi float kad su posmatrana 3 parametra lista
+            #for y in range(2):  # da od stringa upisanog u fajl napravi float kad su posmatrana 2 parametra lista
                 dataset[x][y] = float(dataset[x][y])
             if random.random() < split:
                 trainingSet.append(dataset[x])
@@ -137,8 +124,6 @@ def euclideanDistance(instance1, instance2, length):#euklidsko rastojanje
     for x in range(length):
         distance += pow((instance1[x] - instance2[x]), 2)
     return math.sqrt(distance)
-"""def manhattan_distance(x,y):
-    return sum(abs(a-b) for a,b in zip(x,y))"""
 
 def manhattanDistance(instance1, instance2, length):
     distance = 0
@@ -198,4 +183,5 @@ def main():
     print('Accuracy: ' + repr(accuracy) + '%')
 
 main()
-
+print "End :"
+print  datetime.datetime.now().time()
