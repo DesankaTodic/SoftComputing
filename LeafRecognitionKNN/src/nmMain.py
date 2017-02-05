@@ -7,25 +7,32 @@ import numpy as np
 from numpy import zeros
 from skimage.io import imread
 from skimage.color import rgb2gray
+from skimage.morphology import square
+from skimage.morphology import opening, closing
 import collections
 import datetime
 from skimage.morphology import erosion
 from skimage.morphology import dilation
 from skimage.measure import label  # implementacija connected-components labelling postupka
 from skimage.measure import regionprops
-from skimage.morphology import diamond # strukturni elementi
+from skimage.morphology import square, diamond, disk  # strukturni elementi
 from pylab import *
+from resizeimage import resizeimage
 import csv
 import random
 import math
 import operator
 
+from keras.models import load_model
+from keras.models import Sequential
+from keras.layers.core import Activation, Dense
+from keras.optimizers import SGD
 """
 def processRegions(path,leafNum):
     img = imread(path)
     image_gray = rgb2gray(img)  # transformacija u nijanse sive
     image_bw = (image_gray > 0.8).astype('uint8')  # transformacija u crno bijelu sliku
-    plt.imshow(image_bw, 'gray')
+    #plt.imshow(image_bw, 'gray')
     # plt.show()
     img_tr_dil = dilation(image_bw, selem=diamond(3))
     #plt.imshow(img_tr_dil, 'gray')
@@ -87,7 +94,6 @@ def processPathsToImages(path,imageRootName):
 
 print "Begin :"
 print  datetime.datetime.now().time()
-
 #processPathsToImages(path1,'l1nr00')
 processPathsToImages(path2,'l2nr00')
 processPathsToImages(path3,'l3nr00')
@@ -105,7 +111,7 @@ processPathsToImages(path14,'l14nr00')
 #processPathsToImages(path15,'l15nr00')
 file.close()
 """
-def loadDataset(filename, split, trainingSet=[], testSet=[]):
+def loadDatasetForNM(filename, split, trainingSet=[], testSet=[]):
     with open(filename, 'rb') as csvfile:
         lines = csv.reader(csvfile)
         dataset = list(lines)
@@ -144,7 +150,7 @@ def getNeighbors(trainingSet, testInstance, k):
     return neighbors
 
 
-def getResponse(neighbors):#vraca labele klasa najblizih susjeda
+def getResponse(neighbors):
     classVotes = {}
     for x in range(len(neighbors)):
         response = neighbors[x][-1]
@@ -153,11 +159,7 @@ def getResponse(neighbors):#vraca labele klasa najblizih susjeda
         else:
             classVotes[response] = 1
     sortedVotes = sorted(classVotes.iteritems(), key=operator.itemgetter(1), reverse=True)
-    firstLabels = []
-    for y in range(len(sortedVotes)):
-        firstLabels.append(sortedVotes[y][0])
-    return firstLabels
-    #return sortedVotes[0][0]
+    return sortedVotes[0][0]
 
 def getAccuracy(testSet, predictions):
     correct = 0
@@ -166,43 +168,73 @@ def getAccuracy(testSet, predictions):
             correct += 1
     return (correct / float(len(testSet))) * 100.0
 
-def getAccuracyForK(testSet, predictions):
-    correct = 0
-    for x in range(len(testSet)):
-        for y in range(len(predictions[x])):
-            if testSet[x][-1] == predictions[x][y]:
-                correct += 1
-                break
-    return (correct / float(len(testSet))) * 100.0
-
-def main():
+def mainNM():
+    print "Begin training:"
+    print  datetime.datetime.now().time()
     # prepare data
     trainingSet = []
     testSet = []
     split = 0.67
-    #loadDataset('leaf.data', split, trainingSet, testSet)
-    loadDataset('leafAreaMajorMinor65bez15i1.data', split, trainingSet, testSet)
+    loadDatasetForNM('leaf.data', split, trainingSet, testSet)
     print 'Train set: ' + repr(len(trainingSet))
     print 'Test set: ' + repr(len(testSet))
     # generate predictions
-    predictions = []
-    predictionsForK = []
+    """predictions = []
     k = 3
     for x in range(len(testSet)):
         neighbors = getNeighbors(trainingSet, testSet[x], k)
-        result = []
         result = getResponse(neighbors)
-        predictions.append(result[0])
-        predictionsForK.append(result)
-        print('> predicted')
-        for y in range(len(result)):
-            print '>>'+repr(result[y])
-        print('>>>>> actual=' + repr(testSet[x][-1]))
+        predictions.append(result)
+        print('> predicted=' + repr(result) + ', actual=' + repr(testSet[x][-1]))
     accuracy = getAccuracy(testSet, predictions)
     print('Accuracy: ' + repr(accuracy) + '%')
-    accuracy = getAccuracyForK(testSet, predictionsForK)
-    print('Accuracy for k nearest: ' + repr(accuracy) + '%')
+    """
+    trainingSetValues = []
+    trainingSetLabels = np.empty()
+    testSetValues = []
+    testSetLabels = np.empty()
+    #praviljenje liste numpy nizova koji su ulazi u nm
+    for x in range(len(trainingSet)):
+        trainingInstance = np.empty()
+        for y in range(3):
+            trainingInstance.append(trainingSet[x][y])
+        trainingSetValues.append(trainingInstance)
+        trainingSetLabels.append(trainingSet[x][-1])
 
-main()
+    for x in range(len(testSet)):
+        testInstance = np.empty()
+        for y in range(3):
+            testInstance.append(testSet[x][y])
+        testSetValues.append(testInstance)
+        testSetLabels.append(testSet[x][-1])
+
+    # prepare model
+    model = Sequential()
+    model.add(Dense(70, input_dim=3))
+    model.add(Activation('relu'))
+    # model.add(Dense(50))
+    # model.add(Activation('tanh'))
+    model.add(Dense(13))
+    model.add(Activation('relu'))
+
+    # compile model with optimizer
+    sgd = SGD(lr=0.1, decay=0.001, momentum=0.7)
+    model.compile(loss='mean_squared_error', optimizer=sgd)
+
+    # training
+    training = model.fit(trainingSetValues, trainingSetLabels, nb_epoch=500, batch_size=400, verbose=0)
+    print training.history['loss'][-1]
+
+    # evaluate on test data
+    scores = model.evaluate(testSetValues, testSetLabels, verbose=1)
+    print 'test', scores
+
+    # evaluate on train data
+    scores = model.evaluate(trainingSetValues, trainingSetLabels, verbose=1)
+    print 'train', scores
+
+    model.save('my_model.h5')  # creates a HDF5 file 'my_model.h5'
+
+mainNM()
 print "End :"
 print  datetime.datetime.now().time()
